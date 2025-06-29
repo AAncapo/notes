@@ -3,7 +3,6 @@
     "name": "notes",
     "slug": "notes",
     "version": "1.0.0",
-
     "scheme": "notes",
     "web": {
       "bundler": "metro",
@@ -21,15 +20,11 @@
     ],
     "experiments": {
       "typedRoutes": true,
-
       "tsconfigPaths": true
     },
-
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-
     "userInterfaceStyle": "light",
-
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
@@ -43,7 +38,17 @@
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
+      },
+      "package": "com.ancapo.notes"
+    },
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "87ea9ea8-550e-47ec-b02f-f946ed3028d0"
       }
-    }
+    },
+    "owner": "ancapo"
   }
 }
