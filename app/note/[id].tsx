@@ -1,37 +1,39 @@
 /* eslint-disable prettier/prettier */
-import { Ionicons } from "@expo/vector-icons";
-import * as ImagePicker from "expo-image-picker";
-import { router, useLocalSearchParams } from "expo-router";
-import { useState, useEffect, useRef, useCallback } from "react";
+/* eslint-disable no-case-declarations */
+import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
+import { router, useLocalSearchParams } from 'expo-router';
+import { useState, useEffect, useCallback } from 'react';
 import {
   View,
   TextInput,
   TouchableOpacity,
-  ScrollView,
   KeyboardAvoidingView,
   Platform,
   useColorScheme,
-  Pressable,
-} from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+  FlatList,
+  BackHandler,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { AudioRecordingModal } from "@/components/AudioRecordingModal";
-import { AudioBlock } from "@/components/content-blocks/AudioBlock";
-import { ChecklistBlock } from "@/components/content-blocks/ChecklistBlock";
-import { ImageBlock } from "@/components/content-blocks/ImageBlock";
-import { TextBlock } from "@/components/content-blocks/TextBlock";
-import { useNotesStore } from "@/store/useNotesStore";
-import { ContentBlock, ContentType } from "@/types";
+import { AudioRecordingModal } from '@/components/AudioRecordingModal';
+import { AudioBlock } from '@/components/content-blocks/AudioBlock';
+import { ChecklistBlock } from '@/components/content-blocks/ChecklistBlock';
+import { ImageBlock } from '@/components/content-blocks/ImageBlock';
+import { TextBlock } from '@/components/content-blocks/TextBlock';
+import { useNotesStore } from '@/store/useNotesStore';
+import { BlockProps, ContentBlock, ContentType } from '@/types';
+
+const textPlaceholder = 'Start typing...';
 
 export default function NoteDetails() {
   const colorScheme = useColorScheme();
   const { id } = useLocalSearchParams<{ id?: string }>();
-  const isNewNote = !id || id === "new";
+  const isNewNote = !id || id === 'new';
   const { getNote, addNote, updateNote } = useNotesStore();
-  const [title, setTitle] = useState("");
+  const [title, setTitle] = useState('');
   const [content, setContent] = useState<ContentBlock[]>([]);
   const [isRecordingModalVisible, setIsRecordingModalVisible] = useState(false);
-  const scrollViewRef = useRef<ScrollView>(null);
 
   useEffect(() => {
     if (!isNewNote) {
@@ -40,44 +42,126 @@ export default function NoteDetails() {
         setTitle(existingNote.title);
         setContent(existingNote.content);
       }
+    } else {
+      if (content.length === 0) {
+        console.log('Opened new note -> Adding default initial text block...');
+        addNewContentBlock(ContentType.TEXT, {
+          text: '',
+          placeholder: textPlaceholder,
+          isExpanded: true,
+          focus: false,
+        });
+      }
     }
-  }, [isNewNote, getNote]);
+  }, [isNewNote]);
 
-  const handleSave = () => {
+  // Handle hardware back button press
+  useEffect(() => {
+    const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
+      //   return true; // Prevent default behavior
+      handleSave();
+      return false; // Allow default behavior
+    });
+
+    return () => backHandler.remove();
+  }, [title, content]);
+
+  const handleSave = (goBack?: boolean) => {
+    const isBlank = !title.length && content.length === 1 && !content[0].props.text;
+    if (isBlank) {
+      console.log('Nota vacía descartada');
+      goBack && router.back();
+      return;
+    }
+
     if (!isNewNote) {
       updateNote(id as string, { title, content });
     } else {
       addNote({ title, content });
     }
-    router.back();
+    goBack && router.back();
   };
 
-  const handleAddTextBlock = () => {
-    // Only add if there's no content or the last block isn't empty
-    if (
-      content.length === 0 ||
-      content[content.length - 1].type !== "text" ||
-      content[content.length - 1].content !== ""
-    ) {
-      const newBlock = {
-        id: Date.now().toString(),
-        type: ContentType.TEXT,
-        content: "",
-      };
-
-      setContent([...content, newBlock]);
+  const addNewContentBlock = (type: ContentType, { ...props }: Partial<BlockProps> | undefined) => {
+    let newBlock: ContentBlock | null = null;
+    switch (type) {
+      case ContentType.TEXT:
+        newBlock = {
+          id: Date.now().toString(),
+          type,
+          props: {
+            ...props,
+          },
+        };
+        break;
+      case ContentType.CHECKLIST:
+        newBlock = {
+          id: Date.now().toString(),
+          type,
+          props: {
+            items: [{ id: Date.now().toString(), text: '', checked: false }],
+          },
+        };
+        break;
+      case ContentType.IMAGE:
+        newBlock = {
+          id: Date.now().toString(),
+          type,
+          props: {
+            ...props,
+          },
+        };
+        break;
+      case ContentType.AUDIO:
+        console.log('saving audio...', props.uri);
+        newBlock = {
+          id: Date.now().toString(),
+          type,
+          props: {
+            text: 'Audio',
+            uri: props.uri,
+            duration: props.duration || 0 * 1000, // Convert to milliseconds
+          },
+        };
+        setIsRecordingModalVisible(false);
+        break;
+      default:
+        break;
     }
-  };
 
-  const handleAddChecklist = () => {
-    const newContent = [...content];
-    newContent.push({
-      id: Date.now().toString(),
-      type: ContentType.CHECKLIST,
-      content: "",
-      checked: false,
-    });
-    setContent(newContent);
+    // Shrink the previous last block if it was expanded (or any other expanded block)
+    const updatedContent = content.map((block) =>
+      block.props.isExpanded ? { ...block, props: { ...block.props, isExpanded: false } } : block
+    );
+
+    // eslint-disable-next-line prefer-const
+    let newContent: ContentBlock[] = [...updatedContent];
+
+    // Borra último block (anterior al nuevo) si es texto vacío
+    if (updatedContent.length > 0) {
+      const lastBlock = updatedContent[updatedContent.length - 1];
+      if (lastBlock.type === ContentType.TEXT && !lastBlock.props.text?.length) {
+        newContent.pop();
+      }
+    }
+
+    if (newBlock) {
+      newContent.push(newBlock);
+      if (type !== ContentType.TEXT) {
+        // Añade un text seguido del block si el añadido no es tipo text
+        newContent.push({
+          id: Date.now().toString() + 'new',
+          type: ContentType.TEXT,
+          props: {
+            isExpanded: true,
+            focus: false,
+            text: '',
+            placeholder: '',
+          },
+        });
+      }
+      setContent([...newContent]);
+    }
   };
 
   const handlePickImage = async () => {
@@ -85,142 +169,178 @@ export default function NoteDetails() {
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
       aspect: [4, 3],
-      quality: 0.5,
+      quality: 0.9,
     });
 
     if (!result.canceled) {
-      const newContent = [...content];
-      newContent.push({
-        id: Date.now().toString(),
-        type: ContentType.IMAGE,
-        content: "Image",
+      addNewContentBlock(ContentType.IMAGE, {
+        text: 'Image',
         uri: result.assets[0].uri,
       });
-      setContent(newContent);
     }
-  };
-
-  const handleSaveRecording = (uri: string, duration: number) => {
-    const newContent = [...content];
-    newContent.push({
-      id: Date.now().toString(),
-      type: ContentType.AUDIO,
-      content: "Audio recording",
-      uri,
-      duration: duration * 1000, // Convert to milliseconds
-    });
-    setContent(newContent);
-    setIsRecordingModalVisible(false);
   };
 
   const handleUpdateBlock = (updatedBlock: ContentBlock) => {
     const newContent = content.map((block) =>
-      block.id === updatedBlock.id ? updatedBlock : block,
+      block.id === updatedBlock.id ? updatedBlock : block
     );
     setContent(newContent);
   };
 
   const handleDeleteBlock = (blockId: string) => {
+    // No borrar si es el último texto
+    const deleteIndex = content.findIndex((b) => b.id === blockId);
+    if (content[deleteIndex].type === ContentType.TEXT) {
+      if (deleteIndex === 0) {
+        console.log('No puede eliminar el primer texto onBackspace');
+        return;
+      }
+      if (deleteIndex > 0 && content[deleteIndex - 1].type === ContentType.TEXT) {
+        // TODO: Enfocar anterior primero
+        console.log('TODO: Enfocar texto anterior antes de borrar seleccionado');
+      } else {
+        console.log('No puede eliminar el ultimo texto onBackspace');
+        return;
+      }
+    }
+
     const newContent = content.filter((block) => block.id !== blockId);
+    if (!newContent.length) {
+      // Si block borrado es el primero y la nota va a quedar vacia add texto default
+      // Esto no debería suceder ya que siempre habrá una nota de texto al final
+      addNewContentBlock(ContentType.TEXT, {
+        text: '',
+        placeholder: textPlaceholder,
+        isExpanded: true,
+        focus: false,
+      });
+    }
+
     setContent(newContent);
   };
 
+  const handleTitleSubmit = () => {
+    // Create text block if content is empty
+    const defaultBlock =
+      content.length === 1 && content[0].type === ContentType.TEXT ? content[0] : null;
+    if (defaultBlock && defaultBlock.props.text === '') {
+      setContent([{ ...defaultBlock, props: { ...defaultBlock.props, focus: true } }]);
+    }
+  };
+
   const renderContentBlock = useCallback(
-    (block: ContentBlock) => {
+    ({ item: block, index }: { item: ContentBlock; index: number }) => {
       switch (block.type) {
-        case "text":
-          // eslint-disable-next-line no-case-declarations
-          const autoFocus = content[content.length - 1].id === block.id;
+        case ContentType.TEXT:
           return (
             <TextBlock
               key={block.id}
               block={block}
               onUpdate={handleUpdateBlock}
-              autoFocus={autoFocus}
+              onDelete={handleDeleteBlock}
+              focus={block.props.focus}
+              isLast={index === content.length - 1}
             />
           );
-
-        case "checklist":
+        case ContentType.CHECKLIST:
           return <ChecklistBlock key={block.id} block={block} onUpdate={handleUpdateBlock} />;
-        case "image":
-          return (
-            <ImageBlock key={block.id} block={block} onDelete={() => handleDeleteBlock(block.id)} />
-          );
-        case "audio":
-          return (
-            <AudioBlock key={block.id} block={block} onDelete={() => handleDeleteBlock(block.id)} />
-          );
+        case ContentType.IMAGE:
+          return <ImageBlock key={block.id} block={block} onDelete={handleDeleteBlock} />;
+        case ContentType.AUDIO:
+          return <AudioBlock key={block.id} block={block} onDelete={handleDeleteBlock} />;
+        default:
+          return null;
       }
     },
-    [content],
+    [content]
   );
 
+  const getToolbarIconColor = () => (colorScheme === 'dark' ? 'white' : '#1f2937');
+
   return (
-    <SafeAreaView className={`flex-1 ${colorScheme === "dark" ? "bg-black" : "bg-white"}`}>
+    <SafeAreaView className={`flex-1 ${colorScheme === 'dark' ? 'bg-black' : 'bg-white'}`}>
       {/* Header */}
       <View
         className={`flex-row items-center justify-between border-b p-4 ${
-          colorScheme === "dark" ? "border-gray-800" : "border-gray-200"
+          colorScheme === 'dark' ? 'border-gray-800' : 'border-gray-200'
         }`}
       >
-        <TouchableOpacity onPress={() => router.back()}>
+        <TouchableOpacity
+          onPress={() => {
+            handleSave(true);
+          }}
+        >
           <Ionicons
             name="arrow-back"
             size={24}
-            color={colorScheme === "dark" ? "white" : "black"}
+            color={colorScheme === 'dark' ? 'white' : 'black'}
           />
         </TouchableOpacity>
         <TextInput
-          className={`mx-4 flex-1 text-xl font-bold ${
-            colorScheme === "dark" ? "text-white" : "text-gray-800"
+          className={`mx-4 flex-1 text-center text-xl font-bold ${
+            colorScheme === 'dark' ? 'text-white' : 'text-gray-800'
           }`}
           value={title}
           onChangeText={setTitle}
-          placeholder="Title"
+          placeholder="Título"
+          onSubmitEditing={handleTitleSubmit}
         />
-        <TouchableOpacity onPress={handleSave}>
-          <Ionicons name="checkmark" size={24} color={colorScheme === "dark" ? "white" : "black"} />
+        <TouchableOpacity onPress={() => handleSave(true)}>
+          <Ionicons name="checkmark" size={24} color={colorScheme === 'dark' ? 'white' : 'black'} />
         </TouchableOpacity>
       </View>
 
       {/* Content */}
       <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         className="flex-1"
+        // keyboardVerticalOffset={Platform.select({
+        //   ios: 60, // Adjust this value as needed
+        //   android: 0,
+        // })}
       >
-        <Pressable className="flex-1 bg-red-500" onPress={handleAddTextBlock}>
-          <ScrollView
-            ref={scrollViewRef}
-            className="flex-1"
-            contentContainerStyle={{ paddingBottom: 80 }}
-            // keyboardShouldPersistTaps="handled"
-          >
-            {content.map((block) => renderContentBlock(block))}
-          </ScrollView>
-        </Pressable>
-      </KeyboardAvoidingView>
+        <FlatList
+          data={content}
+          renderItem={renderContentBlock}
+          keyExtractor={(item) => item.id}
+          alwaysBounceVertical
+          contentContainerClassName="flex-grow px-4 pb-20"
+          keyboardShouldPersistTaps="handled"
+          // keyboardDismissMode="none"
+          // maintainVisibleContentPosition={{
+          //   minIndexForVisible: 0,
+          //   autoscrollToTopThreshold: 100,
+          // }}
+        />
 
-      {/* Toolbar */}
-      <View
-        className={`absolute bottom-0 left-0 right-0 flex-row justify-around border-t p-4 ${
-          colorScheme === "dark" ? "border-gray-800 bg-black" : "border-gray-200 bg-white"
-        }`}
-      >
-        <TouchableOpacity onPress={handleAddChecklist}>
-          <Ionicons name="list" size={24} color={colorScheme === "dark" ? "white" : "black"} />
-        </TouchableOpacity>
-        <TouchableOpacity onPress={() => setIsRecordingModalVisible(true)}>
-          <Ionicons name="mic" size={24} color={colorScheme === "dark" ? "white" : "black"} />
-        </TouchableOpacity>
-        <TouchableOpacity onPress={handlePickImage}>
-          <Ionicons name="image" size={24} color={colorScheme === "dark" ? "white" : "black"} />
-        </TouchableOpacity>
-      </View>
+        {/* Toolbar */}
+        <View
+          className={`flex-row justify-around border-t p-4 ${
+            colorScheme === 'dark' ? 'border-gray-800 bg-black' : 'border-gray-200 bg-white'
+          }`}
+        >
+          <TouchableOpacity
+            className="flex-1 items-center"
+            onPress={() => addNewContentBlock(ContentType.CHECKLIST, undefined)}
+          >
+            <Ionicons name="list" size={24} color={getToolbarIconColor()} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            className="flex-1 items-center"
+            onPress={() => setIsRecordingModalVisible(true)}
+          >
+            <Ionicons name="mic" size={24} color={getToolbarIconColor()} />
+          </TouchableOpacity>
+          <TouchableOpacity className="flex-1 items-center" onPress={handlePickImage}>
+            <Ionicons name="image" size={24} color={getToolbarIconColor()} />
+          </TouchableOpacity>
+        </View>
+      </KeyboardAvoidingView>
 
       <AudioRecordingModal
         visible={isRecordingModalVisible}
         onClose={() => setIsRecordingModalVisible(false)}
-        onSave={handleSaveRecording}
+        onSave={(uri, duration) => addNewContentBlock(ContentType.AUDIO, { uri, duration })}
       />
     </SafeAreaView>
   );

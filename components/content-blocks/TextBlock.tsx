@@ -1,23 +1,58 @@
 /* eslint-disable prettier/prettier */
-import { TextInput, useColorScheme } from "react-native";
-import { ContentBlock } from "types";
+import { useEffect, useRef, useState } from 'react';
+import {
+  NativeSyntheticEvent,
+  TextInput,
+  TextInputKeyPressEventData,
+  useColorScheme,
+  View,
+} from 'react-native';
+import { ContentBlock } from 'types';
 
 interface TextBlockProps {
   block: ContentBlock;
   onUpdate: (block: ContentBlock) => void;
-  autoFocus?: boolean;
+  onDelete: (id: string) => void;
+  isLast?: boolean;
+  focus?: boolean;
 }
 
-export function TextBlock({ block, onUpdate, autoFocus }: TextBlockProps) {
+export function TextBlock({ block, onUpdate, focus, onDelete, isLast }: TextBlockProps) {
   const colorScheme = useColorScheme();
+  const [isEmpty, setIsEmpty] = useState<boolean>(false);
+
+  const textInputRef = useRef<TextInput>(null);
+
+  useEffect(() => {
+    if (focus) {
+      textInputRef.current?.focus();
+    }
+  }, [focus]);
+
+  const handleBackspacePress = (e: NativeSyntheticEvent<TextInputKeyPressEventData>) => {
+    if (e.nativeEvent.key === 'Backspace') {
+      if (block.props.text!.length === 0) {
+        setIsEmpty(true);
+        isEmpty && onDelete(block.id);
+      }
+    }
+  };
+  // console.log('isExpanded: ', block.props.isExpanded, 'isLast: ', isLast);
+  const shouldExpand =
+    (block.props.isExpanded && isLast) || (block.props.isExpanded && isLast && isEmpty);
 
   return (
-    <TextInput
-      className={`flex-1 p-2 ${colorScheme === "dark" ? "text-white" : "text-gray-800"} bg-blue-500`}
-      multiline
-      autoFocus={autoFocus}
-      value={block.content}
-      onChangeText={(text) => onUpdate({ ...block, content: text })}
-    />
+    <View className={`${shouldExpand ? 'min-h-screen' : ''}`}>
+      <TextInput
+        ref={textInputRef}
+        className={`flex-1 text-lg ${shouldExpand && 'min-h-screen'} ${colorScheme === 'dark' ? 'text-white' : 'text-gray-800'}`}
+        multiline
+        placeholder={isLast ? block.props.placeholder : ''}
+        defaultValue={block.props.text}
+        onChangeText={(text) => onUpdate({ ...block, props: { ...block.props, text } })}
+        onKeyPress={(e) => handleBackspacePress(e)}
+        textAlignVertical="top"
+      />
+    </View>
   );
 }

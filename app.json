@@ -4,6 +4,16 @@
     "slug": "notes",
     "version": "1.0.0",
     "scheme": "notes",
+    "expo": {
+      "plugins": [
+        [
+          "expo-audio",
+          {
+            "microphonePermission": "Allow Notes to access your microphone."
+          }
+        ]
+      ]
+    },
     "web": {
       "bundler": "metro",
       "output": "static",

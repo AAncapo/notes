@@ -1,14 +1,14 @@
 /* eslint-disable prettier/prettier */
-import { Ionicons } from "@expo/vector-icons";
-import { Audio } from "expo-av";
-import { useState, useEffect } from "react";
-import { View, TouchableOpacity, Text, useColorScheme } from "react-native";
+import { Ionicons } from '@expo/vector-icons';
+import { Audio } from 'expo-av';
+import { useState, useEffect } from 'react';
+import { View, TouchableOpacity, Text, useColorScheme } from 'react-native';
 
-import { ContentBlock } from "@/types";
+import { ContentBlock } from '@/types';
 
 interface AudioBlockProps {
   block: ContentBlock;
-  onDelete: () => void;
+  onDelete: (id: string) => void;
 }
 
 export function AudioBlock({ block, onDelete }: AudioBlockProps) {
@@ -26,7 +26,7 @@ export function AudioBlock({ block, onDelete }: AudioBlockProps) {
   }, [sound]);
 
   const playSound = async () => {
-    if (!block.uri) return;
+    if (!block.props.uri) return;
 
     try {
       if (sound) {
@@ -38,8 +38,8 @@ export function AudioBlock({ block, onDelete }: AudioBlockProps) {
         setIsPlaying(!isPlaying);
       } else {
         const { sound: newSound } = await Audio.Sound.createAsync(
-          { uri: block.uri },
-          { shouldPlay: true },
+          { uri: block.props.uri },
+          { shouldPlay: true }
         );
         setSound(newSound);
         setIsPlaying(true);
@@ -55,7 +55,7 @@ export function AudioBlock({ block, onDelete }: AudioBlockProps) {
         });
       }
     } catch (error) {
-      console.error("Error playing sound:", error);
+      console.error('Error playing sound:', error);
     }
   };
 
@@ -63,37 +63,37 @@ export function AudioBlock({ block, onDelete }: AudioBlockProps) {
     const seconds = Math.floor(ms / 1000);
     const minutes = Math.floor(seconds / 60);
     const remainingSeconds = seconds % 60;
-    return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`;
+    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
   };
 
   return (
-    <View className="flex-row items-center bg-slate-300 p-2">
+    <View className="flex-row items-center justify-between py-2">
       <TouchableOpacity
-        className="flex-row items-center rounded-full bg-gray-200 px-4 py-2 dark:bg-gray-700"
+        className="flex-1 flex-row items-center rounded-full bg-gray-200 px-4 py-2 dark:bg-gray-700"
         onPress={playSound}
       >
         <Ionicons
-          name={isPlaying ? "pause" : "play"}
+          name={isPlaying ? 'pause' : 'play'}
           size={24}
-          color={colorScheme === "dark" ? "white" : "black"}
+          color={colorScheme === 'dark' ? 'white' : 'black'}
         />
-        <View className="ml-2">
-          <View className="h-1 w-32 rounded-full bg-gray-300 dark:bg-gray-600">
+        <View className="ml-2 flex-1">
+          <View className="h-1 rounded-full bg-gray-300 dark:bg-gray-600">
             <View
               className="h-full rounded-full bg-blue-500"
-              style={{ width: `${(position / (block.duration || 1)) * 100}%` }}
+              style={{ width: `${(position / (block.props.duration || 1)) * 100}%` }}
             />
           </View>
           <View className="mt-1 flex-row justify-between">
             <Text className="text-xs text-gray-500 dark:text-gray-400">{formatTime(position)}</Text>
             <Text className="text-xs text-gray-500 dark:text-gray-400">
-              {formatTime(block.duration || 0)}
+              {formatTime(block.props.duration || 0)}
             </Text>
           </View>
         </View>
       </TouchableOpacity>
-      <TouchableOpacity className="ml-2 p-2" onPress={onDelete}>
-        <Ionicons name="close" size={20} color={colorScheme === "dark" ? "white" : "black"} />
+      <TouchableOpacity className="ml-2 p-2" onPress={() => onDelete(block.id)}>
+        <Ionicons name="close" size={20} color={colorScheme === 'dark' ? 'white' : 'black'} />
       </TouchableOpacity>
     </View>
   );
