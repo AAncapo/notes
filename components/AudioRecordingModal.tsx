@@ -1,13 +1,15 @@
 /* eslint-disable prettier/prettier */
 import { Ionicons } from '@expo/vector-icons';
-import { View, Modal, TouchableOpacity, Text, useColorScheme } from 'react-native';
+import { useState } from 'react';
+import { View, Modal, TouchableOpacity, Text, useColorScheme, TextInput } from 'react-native';
 
 import useRecorder from '@/hooks/useAudioRecorder';
+import { BlockProps } from '@/types';
 
 interface AudioRecordingModalProps {
   visible: boolean;
   onClose: () => void;
-  onSave: (uri: string, duration: number) => void;
+  onSave: (props: Partial<BlockProps>) => void;
 }
 
 export function AudioRecordingModal({ visible, onClose, onSave }: AudioRecordingModalProps) {
@@ -22,6 +24,7 @@ export function AudioRecordingModal({ visible, onClose, onSave }: AudioRecording
     pauseRecording,
     resumeRecording,
   } = useRecorder();
+  const [title, setTitle] = useState<string>('');
 
   const handleSave = async () => {
     if (!recording) return;
@@ -30,7 +33,7 @@ export function AudioRecordingModal({ visible, onClose, onSave }: AudioRecording
 
     const uri = recording.getURI();
     if (uri) {
-      onSave(uri, duration);
+      onSave({ uri, duration, title });
     }
   };
 
@@ -47,6 +50,11 @@ export function AudioRecordingModal({ visible, onClose, onSave }: AudioRecording
           className={`w-4/5 rounded-xl p-6 ${colorScheme === 'dark' ? 'bg-gray-800' : 'bg-white'}`}
         >
           <View className="mb-6 items-center">
+            <TextInput
+              className="mb-2 w-full rounded-md border border-slate-200 p-2 text-center text-xl"
+              placeholder="Add a title ..."
+              onChangeText={setTitle}
+            />
             <Text
               className={`text-xl font-bold ${
                 colorScheme === 'dark' ? 'text-white' : 'text-gray-800'
@@ -79,14 +87,16 @@ export function AudioRecordingModal({ visible, onClose, onSave }: AudioRecording
 
           <View className="flex-row justify-between">
             <TouchableOpacity className="p-3" onPress={onClose}>
-              <Text className={`${colorScheme === 'dark' ? 'text-white' : 'text-gray-800'}`}>
+              <Text
+                className={`text-lg font-bold ${colorScheme === 'dark' ? 'text-white' : 'text-gray-800'}`}
+              >
                 Cancel
               </Text>
             </TouchableOpacity>
 
             {isRecording && (
               <TouchableOpacity className="p-3" onPress={handleSave}>
-                <Text className="text-blue-500">Save</Text>
+                <Text className="text-lg font-bold text-blue-500">Save</Text>
               </TouchableOpacity>
             )}
           </View>

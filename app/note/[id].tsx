@@ -17,12 +17,14 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AudioRecordingModal } from '@/components/AudioRecordingModal';
+import BlockOptionsModal from '@/components/BlockOptionsModal';
 import { AudioBlock } from '@/components/content-blocks/AudioBlock';
 import { ChecklistBlock } from '@/components/content-blocks/ChecklistBlock';
 import { ImageBlock } from '@/components/content-blocks/ImageBlock';
 import { TextBlock } from '@/components/content-blocks/TextBlock';
 import { useNotesStore } from '@/store/useNotesStore';
 import { BlockProps, ContentBlock, ContentType } from '@/types';
+import { getIconColor } from '@/utils/utils';
 
 const textPlaceholder = 'Start typing...';
 
@@ -34,6 +36,8 @@ export default function NoteDetails() {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState<ContentBlock[]>([]);
   const [isRecordingModalVisible, setIsRecordingModalVisible] = useState(false);
+  const [optionsModalVisible, setOptionsModalVisible] = useState<boolean>(false);
+  const [optionsId, setOptionsId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isNewNote) {
@@ -118,9 +122,10 @@ export default function NoteDetails() {
           id: Date.now().toString(),
           type,
           props: {
-            text: 'Audio',
+            title: props.title,
             uri: props.uri,
-            duration: props.duration || 0 * 1000, // Convert to milliseconds
+            duration: props.duration,
+            createdAt: new Date().toISOString(),
           },
         };
         setIsRecordingModalVisible(false);
@@ -228,6 +233,11 @@ export default function NoteDetails() {
     }
   };
 
+  const handleOpenOptionsModal = (id: string) => {
+    setOptionsId(id);
+    setOptionsModalVisible(true);
+  };
+
   const renderContentBlock = useCallback(
     ({ item: block, index }: { item: ContentBlock; index: number }) => {
       switch (block.type) {
@@ -247,15 +257,13 @@ export default function NoteDetails() {
         case ContentType.IMAGE:
           return <ImageBlock key={block.id} block={block} onDelete={handleDeleteBlock} />;
         case ContentType.AUDIO:
-          return <AudioBlock key={block.id} block={block} onDelete={handleDeleteBlock} />;
+          return <AudioBlock key={block.id} block={block} openOptions={handleOpenOptionsModal} />;
         default:
           return null;
       }
     },
     [content]
   );
-
-  const getToolbarIconColor = () => (colorScheme === 'dark' ? 'white' : '#1f2937');
 
   return (
     <SafeAreaView className={`flex-1 ${colorScheme === 'dark' ? 'bg-black' : 'bg-white'}`}>
@@ -294,10 +302,6 @@ export default function NoteDetails() {
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         className="flex-1"
-        // keyboardVerticalOffset={Platform.select({
-        //   ios: 60, // Adjust this value as needed
-        //   android: 0,
-        // })}
       >
         <FlatList
           data={content}
@@ -306,11 +310,6 @@ export default function NoteDetails() {
           alwaysBounceVertical
           contentContainerClassName="flex-grow px-4 pb-20"
           keyboardShouldPersistTaps="handled"
-          // keyboardDismissMode="none"
-          // maintainVisibleContentPosition={{
-          //   minIndexForVisible: 0,
-          //   autoscrollToTopThreshold: 100,
-          // }}
         />
 
         {/* Toolbar */}
@@ -320,19 +319,20 @@ export default function NoteDetails() {
           }`}
         >
           <TouchableOpacity
+            disabled
             className="flex-1 items-center"
             onPress={() => addNewContentBlock(ContentType.CHECKLIST, undefined)}
           >
-            <Ionicons name="list" size={24} color={getToolbarIconColor()} />
+            <Ionicons name="list" size={24} color={getIconColor(colorScheme, true)} />
           </TouchableOpacity>
           <TouchableOpacity
             className="flex-1 items-center"
             onPress={() => setIsRecordingModalVisible(true)}
           >
-            <Ionicons name="mic" size={24} color={getToolbarIconColor()} />
+            <Ionicons name="mic" size={24} color={getIconColor(colorScheme)} />
           </TouchableOpacity>
           <TouchableOpacity className="flex-1 items-center" onPress={handlePickImage}>
-            <Ionicons name="image" size={24} color={getToolbarIconColor()} />
+            <Ionicons name="image" size={24} color={getIconColor(colorScheme)} />
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
@@ -340,7 +340,15 @@ export default function NoteDetails() {
       <AudioRecordingModal
         visible={isRecordingModalVisible}
         onClose={() => setIsRecordingModalVisible(false)}
-        onSave={(uri, duration) => addNewContentBlock(ContentType.AUDIO, { uri, duration })}
+        onSave={(props) => addNewContentBlock(ContentType.AUDIO, props)}
+      />
+      {/* BlockOptionsModal */}
+      <BlockOptionsModal
+        type={ContentType.AUDIO}
+        id={optionsId || ''}
+        visible={optionsModalVisible}
+        onClose={() => setOptionsModalVisible(false)}
+        onDelete={handleDeleteBlock}
       />
     </SafeAreaView>
   );

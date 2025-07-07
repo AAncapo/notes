@@ -29,6 +29,7 @@ export interface BlockProps {
   items?: ChecklistItem[];
   uri?: string;
   duration?: number;
+  createdAt?: string;
 }
 
 export type ChecklistItem = {

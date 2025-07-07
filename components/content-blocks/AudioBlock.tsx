@@ -2,16 +2,17 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Audio } from 'expo-av';
 import { useState, useEffect } from 'react';
-import { View, TouchableOpacity, Text, useColorScheme } from 'react-native';
+import { View, TouchableOpacity, Text, useColorScheme, Alert } from 'react-native';
 
 import { ContentBlock } from '@/types';
+import { getIconColor } from '@/utils/utils';
 
 interface AudioBlockProps {
   block: ContentBlock;
-  onDelete: (id: string) => void;
+  openOptions: (id: string) => void;
 }
 
-export function AudioBlock({ block, onDelete }: AudioBlockProps) {
+export function AudioBlock({ block, openOptions }: AudioBlockProps) {
   const colorScheme = useColorScheme();
   const [sound, setSound] = useState<Audio.Sound>();
   const [isPlaying, setIsPlaying] = useState(false);
@@ -54,47 +55,51 @@ export function AudioBlock({ block, onDelete }: AudioBlockProps) {
           }
         });
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error playing sound:', error);
+      Alert.alert('Error reproduciendo audio', error.message);
     }
   };
 
-  const formatTime = (ms: number) => {
-    const seconds = Math.floor(ms / 1000);
+  const formatTime = (seconds: number) => {
     const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = seconds % 60;
-    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+    const secs = seconds % 60;
+    const pad = (num: number) => num.toString().padStart(2, '0');
+    return `${minutes}:${pad(secs)}`;
   };
 
+  // Convert duration to milliseconds for consistent comparison
+  const durationMillis = (block.props.duration || 0) * 1000;
+  const progress = durationMillis > 0 ? (position / durationMillis) * 100 : 0;
+
   return (
-    <View className="flex-row items-center justify-between py-2">
-      <TouchableOpacity
-        className="flex-1 flex-row items-center rounded-full bg-gray-200 px-4 py-2 dark:bg-gray-700"
-        onPress={playSound}
-      >
-        <Ionicons
-          name={isPlaying ? 'pause' : 'play'}
-          size={24}
-          color={colorScheme === 'dark' ? 'white' : 'black'}
-        />
-        <View className="ml-2 flex-1">
-          <View className="h-1 rounded-full bg-gray-300 dark:bg-gray-600">
-            <View
-              className="h-full rounded-full bg-blue-500"
-              style={{ width: `${(position / (block.props.duration || 1)) * 100}%` }}
-            />
-          </View>
-          <View className="mt-1 flex-row justify-between">
-            <Text className="text-xs text-gray-500 dark:text-gray-400">{formatTime(position)}</Text>
-            <Text className="text-xs text-gray-500 dark:text-gray-400">
-              {formatTime(block.props.duration || 0)}
-            </Text>
-          </View>
+    <View className="mt-2 rounded-3xl bg-gray-200 p-4">
+      <View className="mb-1 flex-1 flex-row items-center justify-between">
+        <Text className="text-md ps-2">{block.props.title || block.props.createdAt || ''}</Text>
+        <TouchableOpacity className="ml-4" onPress={() => openOptions(block.id)}>
+          <Ionicons name="ellipsis-horizontal-sharp" size={18} color={getIconColor(colorScheme)} />
+        </TouchableOpacity>
+      </View>
+      <View className="flex-1 flex-row items-center">
+        <TouchableOpacity className="rounded-full" onPress={playSound}>
+          <Ionicons
+            name={isPlaying ? 'pause-circle-sharp' : 'play-circle-sharp'}
+            size={32}
+            color={colorScheme === 'dark' ? 'white' : 'black'}
+          />
+        </TouchableOpacity>
+        <View className="ml-4 h-1 flex-1 rounded-full bg-gray-300">
+          <View
+            className="h-full flex-1 rounded-full bg-blue-500"
+            style={{ width: `${progress}%` }}
+          />
         </View>
-      </TouchableOpacity>
-      <TouchableOpacity className="ml-2 p-2" onPress={() => onDelete(block.id)}>
-        <Ionicons name="close" size={20} color={colorScheme === 'dark' ? 'white' : 'black'} />
-      </TouchableOpacity>
+        <Text className="ml-2 text-sm text-gray-600">
+          {isPlaying
+            ? formatTime(Number((position / 1000).toFixed(0)))
+            : formatTime(block.props.duration || 0)}
+        </Text>
+      </View>
     </View>
   );
 }
