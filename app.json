@@ -7,6 +7,18 @@
     "expo": {
       "plugins": [
         [
+          "expo-share-intent",
+          {
+            "iosActivationRules": {
+              "NSExtensionActivationSupportsWebURLWithMaxCount": 1,
+              "NSExtensionActivationSupportsWebPageWithMaxCount": 1,
+              "NSExtensionActivationSupportsImageWithMaxCount": 1,
+              "NSExtensionActivationSupportsFileWithMaxCount": 1
+            },
+            "androidIntentFilters": ["text/*", "image/*", "audio/*"]
+          }
+        ],
+        [
           "expo-audio",
           {
             "microphonePermission": "Allow Notes to access your microphone."
@@ -21,6 +33,7 @@
     },
     "plugins": [
       "expo-router",
+
       [
         "expo-dev-launcher",
         {

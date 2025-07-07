@@ -38,6 +38,7 @@ export default function NoteDetails() {
   const [isRecordingModalVisible, setIsRecordingModalVisible] = useState(false);
   const [optionsModalVisible, setOptionsModalVisible] = useState<boolean>(false);
   const [optionsId, setOptionsId] = useState<string | null>(null);
+  const [hasChanges, setHasChanges] = useState<boolean>(false);
 
   useEffect(() => {
     if (!isNewNote) {
@@ -63,12 +64,12 @@ export default function NoteDetails() {
   useEffect(() => {
     const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
       //   return true; // Prevent default behavior
-      handleSave();
+      if (hasChanges) handleSave();
       return false; // Allow default behavior
     });
 
     return () => backHandler.remove();
-  }, [title, content]);
+  }, [title, content, hasChanges]);
 
   const handleSave = (goBack?: boolean) => {
     const isBlank = !title.length && content.length === 1 && !content[0].props.text;
@@ -78,7 +79,7 @@ export default function NoteDetails() {
       return;
     }
 
-    if (!isNewNote) {
+    if (!isNewNote && hasChanges) {
       updateNote(id as string, { title, content });
     } else {
       addNote({ title, content });
@@ -167,6 +168,8 @@ export default function NoteDetails() {
       }
       setContent([...newContent]);
     }
+
+    if (!hasChanges) setHasChanges(true);
   };
 
   const handlePickImage = async () => {
@@ -190,6 +193,7 @@ export default function NoteDetails() {
       block.id === updatedBlock.id ? updatedBlock : block
     );
     setContent(newContent);
+    if (!hasChanges) setHasChanges(true);
   };
 
   const handleDeleteBlock = (blockId: string) => {
