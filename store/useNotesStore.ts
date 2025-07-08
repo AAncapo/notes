@@ -1,16 +1,16 @@
 /* eslint-disable prettier/prettier */
 
-import { create } from "zustand";
+import { create } from 'zustand';
 
-import { Note } from "@/types";
-import { getData, storeData } from "@/utils/async-storage";
+import { Note } from '@/types';
+import { getData, storeData } from '@/utils/async-storage';
 
 interface NotesState {
   notes: Note[];
   loading: boolean;
   setNotes: (notes: Note[]) => Promise<void>;
-  addNote: (note: Omit<Note, "id" | "createdAt" | "updatedAt">) => void;
-  updateNote: (id: string, note: Partial<Note>) => void;
+  addNote: (note: Omit<Note, 'id' | 'createdAt' | 'updatedAt'>) => void;
+  updateNote: (id: string, note: Partial<Note>, setUpdatedAt?: boolean) => void;
   deleteNote: (id: string) => void;
   getNote: (id: string) => Note | undefined;
   initializeNotes: () => Promise<void>;
@@ -21,7 +21,7 @@ export const useNotesStore = create<NotesState>()((set, get) => ({
   loading: false,
   setNotes: async (notes) => {
     set({ notes });
-    await storeData("notes", notes);
+    await storeData('notes', notes);
   },
   addNote: (note) => {
     // console.log("add note");
@@ -33,11 +33,13 @@ export const useNotesStore = create<NotesState>()((set, get) => ({
     };
     get().setNotes([...get().notes, newNote]);
   },
-  updateNote: (id, note) => {
+  updateNote: (id, note, setUpdatedAt = true) => {
     // console.log("update note");
     get().setNotes([
       ...get().notes.map((n) =>
-        n.id === id ? { ...n, ...note, updatedAt: new Date().toISOString() } : n,
+        n.id === id
+          ? { ...n, ...note, updatedAt: setUpdatedAt ? new Date().toISOString() : n.updatedAt }
+          : n
       ),
     ]);
   },
@@ -49,7 +51,7 @@ export const useNotesStore = create<NotesState>()((set, get) => ({
     set({ loading: true });
 
     try {
-      const notes = await getData("notes");
+      const notes = await getData('notes');
       if (notes) {
         set({ notes });
       }

@@ -1,7 +1,8 @@
 /* eslint-disable prettier/prettier */
 import { Ionicons } from '@expo/vector-icons';
+import { Waveform, type IWaveformRef } from '@simform_solutions/react-native-audio-waveform';
 import { Audio } from 'expo-av';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { View, TouchableOpacity, Text, useColorScheme, Alert } from 'react-native';
 
 import { ContentBlock } from '@/types';
@@ -17,6 +18,8 @@ export function AudioBlock({ block, openOptions }: AudioBlockProps) {
   const [sound, setSound] = useState<Audio.Sound>();
   const [isPlaying, setIsPlaying] = useState(false);
   const [position, setPosition] = useState(0);
+
+  const wfRef = useRef<IWaveformRef>(null);
 
   useEffect(() => {
     return sound
@@ -75,7 +78,9 @@ export function AudioBlock({ block, openOptions }: AudioBlockProps) {
   return (
     <View className="mt-2 rounded-3xl bg-gray-200 p-4">
       <View className="mb-1 flex-1 flex-row items-center justify-between">
-        <Text className="text-md ps-2">{block.props.title || block.props.createdAt || ''}</Text>
+        <Text className="text-md text-ellipsis ps-2" numberOfLines={1}>
+          {block.props.title || block.props.createdAt || ''}
+        </Text>
         <TouchableOpacity className="ml-4" onPress={() => openOptions(block.id)}>
           <Ionicons name="ellipsis-horizontal-sharp" size={18} color={getIconColor(colorScheme)} />
         </TouchableOpacity>
@@ -88,11 +93,21 @@ export function AudioBlock({ block, openOptions }: AudioBlockProps) {
             color={colorScheme === 'dark' ? 'white' : 'black'}
           />
         </TouchableOpacity>
-        <View className="ml-4 h-1 flex-1 rounded-full bg-gray-300">
-          <View
-            className="h-full flex-1 rounded-full bg-blue-500"
-            style={{ width: `${progress}%` }}
+        {/* <View className="ml-4 flex-1">
+          <Waveform
+            key={block.props.uri}
+            mode="static"
+            ref={wfRef}
+            path={block.props.uri || ''}
+            candleSpace={2}
+            candleWidth={4}
+            scrubColor="white"
+            onPlayerStateChange={(playerState) => console.log(playerState)}
+            onPanStateChange={(isMoving) => console.log(isMoving)}
           />
+        </View> */}
+        <View className="ml-4 h-1 flex-1 rounded-full bg-gray-300">
+          <View className="h-full flex-1 rounded-full bg-black" style={{ width: `${progress}%` }} />
         </View>
         <Text className="ml-2 text-sm text-gray-600">
           {isPlaying

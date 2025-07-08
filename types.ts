@@ -16,6 +16,8 @@ export interface Note {
   id: string;
   title: string;
   content: ContentBlock[];
+  tags?: string[];
+  isPinned?: boolean;
   createdAt: string;
   updatedAt: string;
 }
