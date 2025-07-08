@@ -6,12 +6,6 @@ export enum ContentType {
   AUDIO = 'audio',
 }
 
-export interface ContentBlock {
-  id: string;
-  type: ContentType;
-  props: BlockProps;
-}
-
 export interface Note {
   id: string;
   title: string;
@@ -20,6 +14,12 @@ export interface Note {
   isPinned?: boolean;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface ContentBlock {
+  id: string;
+  type: ContentType;
+  props: BlockProps;
 }
 
 export interface BlockProps {
